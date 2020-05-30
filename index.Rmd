@@ -1,0 +1,108 @@
+---
+title: "Tarea 1. Tablero de control sobre COVID-19"
+autor: "Yuliany Cordero, Nicole Parra y Fernanda Zúñiga"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(sf)
+library(leaflet)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(ggplot2)
+library(spData)
+
+infomapa_covid19cr_cantones = st_read("https://raw.githubusercontent.com/geoprocesamiento-2020i/datos/master/covid19/casos/cr/cr-covid19-cantones.geojson")
+```
+
+
+Column {.sidedata data-width=500}
+-----------------------------------------------------------------------
+
+### Mapa de casos confirmados COVID-19 por Cantones para Costa Rica
+
+```{r}
+m <- leaflet(infomapa_covid19cr_cantones)
+pal <- colorQuantile("Blues", infomapa_covid19cr_cantones$confirmados, n = 5)
+
+
+ m %>% 
+   addPolygons(
+      fillColor = ~pal(confirmados),
+      weight = 2,
+     opacity = 5,
+    color = "white",
+     dashArray = "3",
+    fillOpacity = 3,
+    popup = paste( "Cantón:"
+                 , infomapa_covid19cr_cantones$canton
+                 
+                 ,"Casos Confirmados:"
+                 , infomapa_covid19cr_cantones$confirmados
+                 
+                 ,"Casos Activos:"
+                 , infomapa_covid19cr_cantones$activos
+                 
+                 ,"Casos Recuperados:"
+                 , infomapa_covid19cr_cantones$recuperados
+                 
+                 ,"Fallecidos:"
+                 , infomapa_covid19cr_cantones$muertes
+                 
+                 , "<br>"
+                 , "<a href='"
+                 , infomapa_covid19cr_cantones$geometry
+                 
+               ))%>% 
+   addLegend(pal = pal, values = ~confirmados, opacity = 0.7, title = NULL, position = "bottomright")
+  
+ 
+```
+
+
+### Chart B
+
+```{r}
+tprovinciaconfirmados <-(infomapa_covid19cr_cantones %>% 
+  select( provincia, confirmados) %>% 
+   group_by(provincia) %>% 
+   summarize(confirmados = sum(confirmados, na.rm = TRUE)) %>% 
+     arrange(desc(confirmados)) %>%
+     st_drop_geometry())
+
+ggplot(tprovinciaconfirmados, aes(x=reorder(provincia, -confirmados), y=confirmados)) +
+     ggtitle("Casos confirmados en CR por provincia") +
+     xlab("Provincia") + 
+     ylab("Casos confirmados") +  
+     geom_col() +
+     geom_text(aes(label=confirmados), vjust=-0.3, size=3.5)
+```
+
+
+Row { data-height=500}
+-----------------------------------------------------------------------
+### Chart C
+
+```{r}
+tablaconfirmados_fallecidos_recuperados <-(infomapa_covid19cr_cantones %>% 
+                  select(canton, confirmados, muertes, recuperados) %>% 
+                              group_by(canton) %>% 
+                              arrange(canton) %>%
+                              st_drop_geometry())
+
+kable( tablaconfirmados_fallecidos_recuperados[1:82, c("canton","confirmados","muertes","recuperados"), drop = TRUE], 
+     col.names=c("Cantón","Confirmados","Fallecidos","Recuperados"),  
+     caption="Tabla de datos Covid-19 para CR")%>%
+     kable_styling() #%>%
+    #scroll_box(
+        # width = "800px", 
+        # height = "500px", 
+         #fixed_thead = TRUE
+    #)
+```
+
